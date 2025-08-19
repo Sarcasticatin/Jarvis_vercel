@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jarvis MVP (Vercel)</title>
+  <style>
+    body { font-family: Inter, Arial, sans-serif; background:#0b0b0f; color:#eaeaea; margin:0 }
+    #app { max-width: 720px; margin: 0 auto; padding: 20px; min-height: 100vh; display:flex; flex-direction:column; }
+    h1 { font-size: 20px; color: #90e0ef; margin: 10px 0 20px }
+    .chat { flex:1; overflow-y:auto; padding-bottom: 10px; }
+    .msg { padding: 10px 12px; margin: 8px 0; border-radius: 10px; line-height:1.35 }
+    .user { background: #2a6fdb; color:#fff; margin-left:80px; }
+    .bot  { background: #15161a; color:#b8f2e6; border:1px solid #222; margin-right:80px; }
+    .row { display:flex; gap:8px; position: sticky; bottom:0; background: rgba(11,11,15,0.95); padding:10px 0 }
+    input { flex:1; padding:12px; border-radius:8px; border:1px solid #333; background:#0f1115; color:#eee; outline:none }
+    button { padding:12px 14px; border-radius:8px; border:none; background:#22c55e; color:#031; font-weight:700; cursor:pointer }
+    .result a { color:#93c5fd; text-decoration:none }
+    .hint { color:#aaa; font-size:12px; margin-top:6px }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>🧠 Jarvis MVP</h1>
+    <div class="chat" id="chat"></div>
+    <div class="row">
+      <input id="q" placeholder="Ask anything... (e.g., latest iPhone)" />
+      <button id="send">Send</button>
+    </div>
+    <div class="hint">Tip: Host this on Vercel so /api/search works. Local file won't fetch Google.</div>
+  </div>
+  <script>
+    const chat = document.getElementById('chat');
+    const qEl = document.getElementById('q');
+    const sendBtn = document.getElementById('send');
+
+    function addMsg(text, who='bot') {
+      const div = document.createElement('div');
+      div.className = 'msg ' + (who==='user'?'user':'bot');
+      div.innerHTML = text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function ask() {
+      const q = qEl.value.trim();
+      if (!q) return;
+      addMsg(q, 'user');
+      qEl.value='';
+      addMsg('Thinking...');
+
+      try {
+        const resp = await fetch('/api/search?q=' + encodeURIComponent(q));
+        if (!resp.ok) throw new Error('API error ' + resp.status);
+        const data = await resp.json();
+        const items = (data.results||[]).slice(0,3).map(r => {
+          const t = r.title ? r.title : 'Untitled';
+          const u = r.link ? r.link : '#';
+          return `<div class="result"><a href="${u}" target="_blank" rel="noopener">${t}</a></div>`;
+        });
+        chat.lastChild.remove(); // remove 'Thinking...'
+        addMsg(items.join('') || 'No results.');
+      } catch (e) {
+        chat.lastChild.remove();
+        addMsg('⚠️ ' + e.message);
+      }
+    }
+
+    sendBtn.onclick = ask;
+    qEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') ask(); });
+  </script>
+</body>
+</html>
